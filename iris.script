@@ -1,0 +1,7 @@
+     
+     zn "%SYS"
+     Do ##class(Security.Users).UnExpireUserPasswords("*")
+     zn "USER"
+     zpm "install fhir-server"
+     exit
+     halt

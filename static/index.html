@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI FHIR Integration Copilot</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        header {
+            background: #1e293b;
+            padding: 16px 24px;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        header .logo {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        header .logo:hover { opacity: 0.8; }
+        header h1 { font-size: 18px; font-weight: 600; cursor: pointer; }
+        header h1:hover { opacity: 0.8; }
+        header .badge {
+            background: #334155;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            color: #94a3b8;
+        }
+        header .spacer { flex: 1; }
+        .settings-btn {
+            background: none;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 8px;
+            color: #94a3b8;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .settings-btn:hover {
+            border-color: #3b82f6;
+            color: #60a5fa;
+        }
+        .settings-btn svg { width: 20px; height: 20px; }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            border-bottom: 1px solid #334155;
+        }
+        .modal-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 20px;
+            padding: 4px;
+        }
+        .modal-close:hover { color: #e2e8f0; }
+        .modal-body { padding: 24px; }
+        .form-section {
+            margin-bottom: 24px;
+        }
+        .form-section:last-child { margin-bottom: 0; }
+        .form-section h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #60a5fa;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .form-section h3::before {
+            content: '';
+            display: block;
+            width: 3px;
+            height: 16px;
+            background: #3b82f6;
+            border-radius: 2px;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group:last-child { margin-bottom: 0; }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+        .form-group input {
+            width: 100%;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: #e2e8f0;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus { border-color: #3b82f6; }
+        .form-group input::placeholder { color: #475569; }
+        .form-group .hint {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 16px 24px;
+            border-top: 1px solid #334155;
+        }
+        .btn-cancel {
+            background: #334155;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            color: #e2e8f0;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-cancel:hover { background: #475569; }
+        .btn-save {
+            background: #3b82f6;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-save:hover { background: #2563eb; }
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #059669;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 1100;
+            display: none;
+        }
+        .toast.show { display: block; }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .welcome {
+            text-align: center;
+            padding: 60px 20px;
+            max-width: 600px;
+            margin: auto;
+        }
+        .welcome h2 {
+            font-size: 24px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .welcome p { color: #94a3b8; line-height: 1.6; }
+        .examples {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 24px;
+        }
+        .example-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+        .example-card:hover {
+            border-color: #3b82f6;
+            background: #1e3a5f;
+        }
+        .example-card .tag {
+            display: inline-block;
+            background: #334155;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            color: #60a5fa;
+            margin-bottom: 8px;
+        }
+        .example-card p { font-size: 13px; color: #cbd5e1; }
+        .message {
+            display: flex;
+            gap: 12px;
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+        }
+        .message.user { flex-direction: row-reverse; }
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .message.user .avatar { background: #3b82f6; }
+        .message.assistant .avatar { background: #8b5cf6; }
+        .bubble {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 12px 16px;
+            max-width: 700px;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+        .message.user .bubble {
+            background: #1e40af;
+            border-color: #2563eb;
+        }
+        .bubble .meta {
+            display: inline-block;
+            background: #334155;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+        .bubble pre {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 12px;
+            overflow-x: auto;
+            margin: 8px 0;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .bubble code {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        .json-block {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 16px;
+            overflow-x: auto;
+            margin: 12px 0;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre;
+            color: #e2e8f0;
+        }
+        .json-key { color: #7dd3fc; }
+        .json-string { color: #86efac; }
+        .json-number { color: #fbbf24; }
+        .json-boolean { color: #c084fc; }
+        .json-null { color: #94a3b8; }
+        .json-bracket { color: #e2e8f0; }
+        .section-header {
+            color: #60a5fa;
+            font-weight: 600;
+            margin: 16px 0 8px 0;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #334155;
+        }
+        .bubble p { margin: 8px 0; }
+        .bubble p:first-child { margin-top: 0; }
+        .bubble ul, .bubble ol { padding-left: 20px; margin: 8px 0; }
+        .input-area {
+            background: #1e293b;
+            border-top: 1px solid #334155;
+            padding: 16px 24px;
+        }
+        .input-wrapper {
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            gap: 12px;
+        }
+        textarea {
+            flex: 1;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: #e2e8f0;
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            min-height: 48px;
+            max-height: 200px;
+            line-height: 1.5;
+        }
+        textarea:focus { border-color: #3b82f6; }
+        textarea::placeholder { color: #64748b; }
+        button {
+            background: #3b82f6;
+            border: none;
+            border-radius: 12px;
+            padding: 0 20px;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background: #2563eb; }
+        button:disabled { background: #334155; cursor: not-allowed; }
+        .loading {
+            display: flex;
+            gap: 4px;
+            padding: 8px 0;
+        }
+        .loading span {
+            width: 8px;
+            height: 8px;
+            background: #60a5fa;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+        .loading span:nth-child(1) { animation-delay: -0.32s; }
+        .loading span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo" onclick="resetHome()">F</div>
+        <h1 onclick="resetHome()">AI FHIR Integration Copilot</h1>
+        <span class="badge">LangGraph Multi-Agent</span>
+        <div class="spacer"></div>
+        <button class="settings-btn" onclick="openSettings()" title="Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+        </button>
+    </header>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button class="modal-close" onclick="closeSettings()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-section">
+                    <h3>LLM Configuration</h3>
+                    <div class="form-group">
+                        <label>API Key</label>
+                        <input type="password" id="apiKey" placeholder="sk-...">
+                    </div>
+                    <div class="form-group">
+                        <label>Base URL</label>
+                        <input type="text" id="baseUrl" placeholder="https://api.openai.com/v1">
+                        <div class="hint">OpenAI, DeepSeek, OpenRouter, etc.</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Model Name</label>
+                        <input type="text" id="modelName" placeholder="gpt-4o">
+                        <div class="hint">gpt-4o, deepseek-v4-pro, etc.</div>
+                    </div>
+                </div>
+                <div class="form-section">
+                    <h3>Vector Store</h3>
+                    <div class="form-group">
+                        <label>Vector Store Type</label>
+                        <select id="vectorStoreType" style="width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 10px 12px; color: #e2e8f0; font-size: 14px; outline: none;">
+                            <option value="faiss">FAISS (Local File)</option>
+                            <option value="iris">IRIS Vector Search</option>
+                        </select>
+                        <div class="hint">FAISS stores locally, IRIS stores in database</div>
+                    </div>
+                    <div class="form-group">
+                        <button class="btn-rebuild" onclick="rebuildVectorstore()" style="background: #f59e0b; border: none; border-radius: 8px; padding: 10px 20px; color: #000; font-size: 14px; cursor: pointer; margin-top: 8px;">Rebuild Vectorstore</button>
+                        <div class="hint">Rebuild after switching vector store type</div>
+                    </div>
+                </div>
+                <div class="form-section">
+                    <h3>IRIS FHIR Server</h3>
+                    <div class="form-group">
+                        <label>Host</label>
+                        <input type="text" id="irisHost" placeholder="http://localhost:52773">
+                    </div>
+                    <div class="form-group">
+                        <label>FHIR Path</label>
+                        <input type="text" id="irisFhirPath" placeholder="/fhir/r4">
+                    </div>
+                    <div class="form-group">
+                        <label>SQL Port</label>
+                        <input type="number" id="irisSqlPort" placeholder="1972">
+                        <div class="hint">Used for vector store connection</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" id="irisUsername" placeholder="_system">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="irisPassword" placeholder="SYS">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeSettings()">Cancel</button>
+                <button class="btn-save" onclick="saveSettings()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <div class="chat-container" id="chatContainer">
+        <div class="welcome" id="welcome">
+            <h2>AI FHIR Integration Copilot</h2>
+            <p>AI-powered FHIR assistant based on LangGraph multi-agent architecture, with RAG knowledge retrieval and IRIS integration</p>
+            <div class="examples">
+                <div class="example-card" onclick="useExample(this)">
+                    <span class="tag">FHIR Q&A</span>
+                    <p>What is the FHIR Observation resource?</p>
+                </div>
+                <div class="example-card" onclick="useExample(this)">
+                    <span class="tag">FHIR Query</span>
+                    <p>Find diabetic patients in the last 30 days</p>
+                </div>
+                <div class="example-card" onclick="useExample(this)">
+                    <span class="tag">Data Mapping</span>
+                    <p>{"name":"John","gender":"male","birthDate":"1990-01-15"}</p>
+                </div>
+                <div class="example-card" onclick="useExample(this)">
+                    <span class="tag">Bundle</span>
+                    <p>Create a diabetic patient admission record</p>
+                </div>
+                <div class="example-card" onclick="useExample(this)">
+                    <span class="tag">Validation</span>
+                    <p>{"resourceType":"Patient","name":[{"family":"Smith"}]}</p>
+                </div>
+                <div class="example-card" onclick="useExample(this)">
+                    <span class="tag">IRIS</span>
+                    <p>Get patient 3 from IRIS</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="input-area">
+        <div class="input-wrapper">
+            <textarea
+                id="userInput"
+                placeholder="Enter your FHIR question..."
+                rows="1"
+                onkeydown="handleKeyDown(event)"
+                oninput="autoResize(this)"
+            ></textarea>
+            <button id="sendBtn" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+        const welcome = document.getElementById('welcome');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+
+        function autoResize(el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+        }
+
+        function handleKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function useExample(card) {
+            const text = card.querySelector('p').textContent;
+            userInput.value = text;
+            sendMessage();
+        }
+
+        function resetHome() {
+            const messages = chatContainer.querySelectorAll('.message');
+            messages.forEach(msg => msg.remove());
+            welcome.classList.remove('hidden');
+            userInput.value = '';
+            userInput.style.height = 'auto';
+        }
+
+        // Settings functions
+        async function openSettings() {
+            document.getElementById('settingsModal').classList.add('active');
+            try {
+                const response = await fetch('/api/settings');
+                const data = await response.json();
+                document.getElementById('apiKey').value = data.openai_api_key || '';
+                document.getElementById('baseUrl').value = data.openai_base_url || '';
+                document.getElementById('modelName').value = data.model_name || '';
+                document.getElementById('vectorStoreType').value = data.vector_store_type || 'faiss';
+                document.getElementById('irisHost').value = data.iris_host || '';
+                document.getElementById('irisFhirPath').value = data.iris_fhir_path || '';
+                document.getElementById('irisSqlPort').value = data.iris_sql_port || 1972;
+                document.getElementById('irisUsername').value = data.iris_username || '';
+                document.getElementById('irisPassword').value = data.iris_password || '';
+            } catch (e) {
+                console.error('Failed to load settings:', e);
+            }
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.remove('active');
+        }
+
+        async function saveSettings() {
+            const data = {
+                openai_api_key: document.getElementById('apiKey').value,
+                openai_base_url: document.getElementById('baseUrl').value,
+                model_name: document.getElementById('modelName').value,
+                vector_store_type: document.getElementById('vectorStoreType').value,
+                iris_host: document.getElementById('irisHost').value,
+                iris_fhir_path: document.getElementById('irisFhirPath').value,
+                iris_sql_port: parseInt(document.getElementById('irisSqlPort').value) || 1972,
+                iris_username: document.getElementById('irisUsername').value,
+                iris_password: document.getElementById('irisPassword').value
+            };
+            try {
+                const response = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                closeSettings();
+                showToast('Settings saved and applied successfully');
+            } catch (e) {
+                showToast('Failed to save settings');
+            }
+        }
+
+        async function rebuildVectorstore() {
+            const btn = document.querySelector('.btn-rebuild');
+            btn.disabled = true;
+            btn.textContent = 'Rebuilding...';
+            try {
+                const response = await fetch('/api/vectorstore/rebuild', {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                if (result.status === 'ok') {
+                    showToast('Vectorstore rebuilt successfully');
+                } else {
+                    showToast('Error: ' + result.message);
+                }
+            } catch (e) {
+                showToast('Failed to rebuild vectorstore');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Rebuild Vectorstore';
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Close modal on outside click
+        document.getElementById('settingsModal').addEventListener('click', function(e) {
+            if (e.target === this) closeSettings();
+        });
+
+        function addMessage(role, content, taskType) {
+            welcome.classList.add('hidden');
+
+            const msg = document.createElement('div');
+            msg.className = `message ${role}`;
+
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar';
+            avatar.textContent = role === 'user' ? 'U' : 'F';
+
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+
+            if (taskType) {
+                const meta = document.createElement('span');
+                meta.className = 'meta';
+                meta.textContent = taskType.toUpperCase();
+                bubble.appendChild(meta);
+            }
+
+            if (role === 'user') {
+                bubble.textContent = content;
+            } else {
+                bubble.innerHTML = formatContent(content);
+            }
+
+            msg.appendChild(avatar);
+            msg.appendChild(bubble);
+            chatContainer.appendChild(msg);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            return bubble;
+        }
+
+        function addLoading() {
+            const msg = document.createElement('div');
+            msg.className = 'message assistant';
+            msg.id = 'loadingMsg';
+
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar';
+            avatar.textContent = 'F';
+
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.innerHTML = '<div class="loading"><span></span><span></span><span></span></div>';
+
+            msg.appendChild(avatar);
+            msg.appendChild(bubble);
+            chatContainer.appendChild(msg);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function removeLoading() {
+            const el = document.getElementById('loadingMsg');
+            if (el) el.remove();
+        }
+
+        function formatContent(text) {
+            const jsonMarker = '==================================================\nJSON Response:\n==================================================';
+            const markerIndex = text.indexOf(jsonMarker);
+
+            if (markerIndex !== -1) {
+                const beforeText = text.substring(0, markerIndex).trim();
+                const jsonText = text.substring(markerIndex + jsonMarker.length).trim();
+
+                let html = '';
+                if (beforeText) {
+                    html += formatText(beforeText);
+                }
+                html += '<div class="section-header">JSON Response:</div>';
+                html += '<div class="json-block">' + highlightJson(jsonText) + '</div>';
+                return html;
+            }
+
+            const lines = text.split('\n');
+            let textLines = [];
+            let jsonLines = [];
+            let inJson = false;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!inJson && (line.startsWith('{') || line.startsWith('['))) {
+                    inJson = true;
+                    jsonLines.push(lines[i]);
+                } else if (inJson) {
+                    jsonLines.push(lines[i]);
+                } else {
+                    textLines.push(lines[i]);
+                }
+            }
+
+            if (jsonLines.length > 0) {
+                const jsonStr = jsonLines.join('\n');
+                try {
+                    const parsed = JSON.parse(jsonStr);
+                    const formatted = JSON.stringify(parsed, null, 2);
+                    let html = '';
+                    if (textLines.length > 0) {
+                        html += formatText(textLines.join('\n'));
+                    }
+                    html += '<div class="json-block">' + highlightJson(formatted) + '</div>';
+                    return html;
+                } catch (e) {
+                    // Not valid JSON
+                }
+            }
+
+            return formatText(text);
+        }
+
+        function formatText(text) {
+            let html = text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:#60a5fa;text-decoration:underline;">$1</a>')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>');
+            return '<p>' + html + '</p>';
+        }
+
+        function highlightJson(json) {
+            return json
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"([^"]+)"(?=\s*:)/g, '<span class="json-key">"$1"</span>')
+                .replace(/:\s*"([^"]*?)"/g, ': <span class="json-string">"$1"</span>')
+                .replace(/:\s*(\d+\.?\d*)/g, ': <span class="json-number">$1</span>')
+                .replace(/:\s*(true|false)/g, ': <span class="json-boolean">$1</span>')
+                .replace(/:\s*(null)/g, ': <span class="json-null">$1</span>')
+                .replace(/([{}\[\]])/g, '<span class="json-bracket">$1</span>');
+        }
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
+
+            addMessage('user', text);
+            userInput.value = '';
+            userInput.style.height = 'auto';
+
+            sendBtn.disabled = true;
+            addLoading();
+
+            try {
+                const response = await fetch('/api/copilot', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: text }),
+                });
+
+                const data = await response.json();
+                removeLoading();
+                addMessage('assistant', data.result, data.task_type);
+            } catch (error) {
+                removeLoading();
+                addMessage('assistant', 'Request failed: ' + error.message);
+            } finally {
+                sendBtn.disabled = false;
+            }
+        }
+
+        userInput.focus();
+    </script>
+</body>
+</html>

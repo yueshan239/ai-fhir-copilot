@@ -1,0 +1,4 @@
+# Minimal dependencies for IRIS container
+# Python app dependencies are in Dockerfile.app
+fastapi
+uvicorn
