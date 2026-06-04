@@ -65,7 +65,11 @@ OPENAI_API_KEY=sk-your-api-key-here
 docker compose up -d
 ```
 
-3. Access the application:
+3. Wait for services to be ready:
+
+   > **Note:** After starting Docker, please wait a moment. The vector database needs to be initialized on first startup. Port 8000 will become accessible once initialization is complete. You can monitor the progress with `docker compose logs -f`.
+
+4. Access the application:
 
 | URL | Description |
 |-----|-------------|
